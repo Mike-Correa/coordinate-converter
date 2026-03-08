@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Conversor Universal de Coordenadas</title>
+    <style>
+        /* Variáveis de Tema Claro (Padrão) */
+        :root {
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --text-main: #333333;
+            --text-muted: #555555;
+            --accent: #1a73e8;
+            --accent-hover: #1557b0;
+            --border: #dddddd;
+            --error: #d93025;
+            --success: #28a745;
+            --table-header: #f8f9fa;
+            --table-row: #ffffff;
+            --table-value: #d93025;
+            --tooltip-bg: #ffffff;
+        }
+
+        /* Variáveis de Tema Escuro (Definidas por atributo ou sistema) */
+        [data-theme="dark"] {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --text-main: #e0e0e0;
+            --text-muted: #9e9e9e;
+            --accent: #90caf9;
+            --accent-hover: #42a5f5;
+            --border: #333333;
+            --error: #ef5350;
+            --success: #66bb6a;
+            --table-header: #2c2c2c;
+            --table-row: #242424;
+            --table-value: #ffb74d;
+            --tooltip-bg: #1e1e1e;
+        }
+
+        /* Respeita a preferência do sistema se o usuário não tiver forçado um tema */
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) {
+                --bg-color: #121212;
+                --card-bg: #1e1e1e;
+                --text-main: #e0e0e0;
+                --text-muted: #9e9e9e;
+                --accent: #90caf9;
+                --accent-hover: #42a5f5;
+                --border: #333333;
+                --error: #ef5350;
+                --success: #66bb6a;
+                --table-header: #2c2c2c;
+                --table-row: #242424;
+                --table-value: #ffb74d;
+                --tooltip-bg: #1e1e1e;
+            }
+        }
+
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; max-width: 650px; margin: 40px auto; padding: 20px; background-color: var(--bg-color); color: var(--text-main); transition: background-color 0.3s, color 0.3s; position: relative; }
+        
+        /* Botão de Troca de Tema (Stealth Mode) */
+        .theme-toggle { position: fixed; top: 15px; right: 15px; background: transparent; border: none; font-size: 22px; cursor: pointer; opacity: 0.4; transition: 0.3s; z-index: 1000; padding: 10px; }
+        .theme-toggle:hover { opacity: 1; transform: scale(1.1); }
+
+        .card { background: var(--card-bg); padding: 28px; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.15); border: 1px solid var(--border); transition: background-color 0.3s, border-color 0.3s; margin-top: 30px; }
+        [data-theme="dark"] .card { box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+        @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card { box-shadow: 0 8px 32px rgba(0,0,0,0.5); } }
+        
+        h2 { color: var(--accent); text-align: center; margin-bottom: 25px; font-size: 24px; font-weight: 600; letter-spacing: 0.5px; }
+        
+        .input-group { margin-bottom: 20px; }
+        label { display: flex; align-items: center; font-size: 13px; color: var(--text-muted); margin-bottom: 8px; font-weight: 600; text-transform: uppercase; }
+        
+        /* Tooltip CSS */
+        .tooltip { position: relative; display: inline-block; cursor: help; margin-left: 8px; color: var(--accent); background: rgba(144, 202, 249, 0.1); border-radius: 50%; width: 16px; height: 16px; text-align: center; line-height: 16px; font-size: 11px; font-weight: bold; border: 1px solid var(--accent); }
+        .tooltip .tooltip-text { visibility: hidden; width: 260px; background-color: var(--tooltip-bg); color: var(--text-main); text-align: left; border-radius: 6px; padding: 12px; position: absolute; z-index: 10; bottom: 135%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.2s; border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.2); font-weight: normal; font-size: 12px; font-family: 'Consolas', monospace; white-space: pre-line; text-transform: none; letter-spacing: 0; }
+        [data-theme="dark"] .tooltip .tooltip-text { box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tooltip .tooltip-text { box-shadow: 0 4px 15px rgba(0,0,0,0.5); } }
+        
+        .tooltip .tooltip-text::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: var(--border) transparent transparent transparent; }
+        .tooltip:hover .tooltip-text { visibility: visible; opacity: 1; }
+        
+        input[type="text"] { 
+            width: 100%; padding: 15px; border: 2px solid var(--border); border-radius: 8px; 
+            box-sizing: border-box; font-size: 15px; background: var(--bg-color); color: var(--text-main);
+            transition: 0.3s; font-family: 'Consolas', monospace;
+        }
+        input[type="text"]:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px rgba(144, 202, 249, 0.1); }
+        
+        .error-msg { color: var(--error); font-size: 13px; margin-top: 8px; display: none; font-weight: 500; }
+        
+        .btn-convert { background: var(--accent); color: #ffffff; border: none; padding: 14px; border-radius: 8px; cursor: pointer; width: 100%; font-size: 15px; font-weight: bold; margin-bottom: 25px; transition: 0.2s; text-transform: uppercase; letter-spacing: 1px; }
+        [data-theme="dark"] .btn-convert { color: #000000; }
+        @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .btn-convert { color: #000000; } }
+        .btn-convert:hover { background: var(--accent-hover); transform: translateY(-1px); }
+
+        #res-container { display: none; animation: fadeIn 0.4s ease-out; }
+        
+        .result-section { margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+        .section-title { background: var(--table-header); padding: 10px 15px; font-size: 13px; font-weight: bold; color: var(--text-muted); text-transform: uppercase; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;}
+        
+        .result-value { padding: 15px; background: var(--table-row); font-family: 'Consolas', monospace; font-weight: 600; font-size: 15px; color: var(--table-value); word-wrap: break-word; letter-spacing: 0.5px; }
+        
+        /* Estilos para o link clicável */
+        .url-value a { color: var(--accent); text-decoration: none; transition: 0.2s; }
+        .url-value a:hover { text-decoration: underline; color: var(--accent-hover); }
+
+        .btn-copy { background: transparent; color: var(--accent); border: 1px solid var(--accent); padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; transition: 0.2s; }
+        .btn-copy:hover { background: rgba(144, 202, 249, 0.1); }
+        .success-msg { color: var(--success); font-size: 13px; text-align: center; margin-top: 15px; display: none; font-weight: 500; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+<button id="theme-toggle" class="theme-toggle" aria-label="Alternar Tema" title="Alternar Modo Escuro/Claro">🌙</button>
+
+<div class="card">
+    <h2>Conversor Universal de Coordenadas</h2>
+    
+    <div class="input-group">
+        <label for="coords-input">
+            Cole o formato ou Link
+            <div class="tooltip">?
+                <span class="tooltip-text">Exemplos Suportados:
+                
+DD: -26.748082, -48.679617
+DMS: 26°44'53.1"S 48°40'46.6"W
+UTM: 22S 730765.81 7039362.65
+Link: https://www.google.com/maps?...</span>
+            </div>
+        </label>
+        <input type="text" id="coords-input" placeholder="Cole aqui e pressione Enter..." autocomplete="off" autofocus>
+        <div id="error-msg" class="error-msg"></div>
+    </div>
+    
+    <button class="btn-convert" id="btn-convert">Converter</button>
+
+    <div id="res-container">
+        
+        <div class="result-section">
+            <div class="section-title">
+                <span>Graus Decimais (DD)</span>
+                <button class="btn-copy" onclick="copyResult('dd-result')">Copiar</button>
+            </div>
+            <div class="result-value" id="dd-result">--</div>
+        </div>
+
+        <div class="result-section">
+            <div class="section-title">
+                <span>Graus, Min, Seg (DMS)</span>
+                <button class="btn-copy" onclick="copyResult('dms-result')">Copiar</button>
+            </div>
+            <div class="result-value" id="dms-result">--</div>
+        </div>
+
+        <div class="result-section">
+            <div class="section-title">
+                <span>UTM (WGS84)</span>
+                <button class="btn-copy" onclick="copyResult('utm-result')">Copiar</button>
+            </div>
+            <div class="result-value" id="utm-result">--</div>
+        </div>
+
+        <div class="result-section">
+            <div class="section-title">
+                <span>Google Maps Link</span>
+                <button class="btn-copy" onclick="copyResult('gmaps-result')">Copiar</button>
+            </div>
+            <div class="result-value url-value" id="gmaps-result">--</div>
+        </div>
+
+        <div id="copy-msg" class="success-msg">Copiado para a área de transferência!</div>
+    </div>
+</div>
+
+<script>
+// --- THEME LOGIC ---
+const themeToggleBtn = document.getElementById('theme-toggle');
+const savedTheme = localStorage.getItem('coord-converter-theme');
+const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+
+function updateThemeIcon() {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark' || 
+                  (!document.documentElement.hasAttribute('data-theme') && systemPrefersDark.matches);
+    themeToggleBtn.innerText = isDark ? '☀️' : '🌙';
+}
+
+if (savedTheme) {
+    document.documentElement.setAttribute('data-theme', savedTheme);
+}
+updateThemeIcon();
+
+themeToggleBtn.addEventListener('click', () => {
+    let currentTheme = document.documentElement.getAttribute('data-theme');
+    
+    if (!currentTheme) {
+        currentTheme = systemPrefersDark.matches ? 'dark' : 'light';
+    }
+
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('coord-converter-theme', newTheme);
+    updateThemeIcon();
+});
+
+systemPrefersDark.addEventListener('change', () => {
+    if (!localStorage.getItem('coord-converter-theme')) {
+        updateThemeIcon();
+    }
+});
+
+
+// --- CORE MATH LOGIC ---
+
+function DDtoDMS(lat, lon) {
+    function convert(dec, isLat) {
+        const dir = dec < 0 ? (isLat ? 'S' : 'W') : (isLat ? 'N' : 'E');
+        const abs = Math.abs(dec);
+        const d = Math.floor(abs);
+        const m = Math.floor((abs - d) * 60);
+        const s = ((abs - d - m / 60) * 3600).toFixed(2);
+        return `${d}°${m}'${s}"${dir}`;
+    }
+    return { lat: convert(lat, true), lon: convert(lon, false) };
+}
+
+function LatLonToUTM(lat, lon) {
+    const a = 6378137, f = 1 / 298.257223563, k0 = 0.9996;
+    const zone = Math.floor((lon + 180) / 6) + 1;
+    const lon0 = (zone * 6 - 183) * Math.PI / 180;
+    const phi = lat * Math.PI / 180;
+    const lambda = lon * Math.PI / 180;
+    const e2 = 2 * f - f * f, ep2 = e2 / (1 - e2);
+    
+    const N = a / Math.sqrt(1 - e2 * Math.sin(phi) * Math.sin(phi));
+    const T = Math.tan(phi) * Math.tan(phi);
+    const C = ep2 * Math.cos(phi) * Math.cos(phi);
+    const A = Math.cos(phi) * (lambda - lon0);
+    
+    const M = a * ((1 - e2 / 4 - 3 * e2 * e2 / 64 - 5 * Math.pow(e2, 3) / 256) * phi - (3 * e2 / 8 + 3 * e2 * e2 / 32 + 45 * Math.pow(e2, 3) / 1024) * Math.sin(2 * phi) + (15 * e2 * e2 / 256 + 45 * Math.pow(e2, 3) / 1024) * Math.sin(4 * phi) - (35 * Math.pow(e2, 3) / 3072) * Math.sin(6 * phi));
+    
+    const easting = k0 * N * (A + (1 - T + C) * Math.pow(A, 3) / 6 + (5 - 18 * T + T * T + 72 * C - 58 * ep2) * Math.pow(A, 5) / 120) + 500000;
+    let northing = k0 * (M + N * Math.tan(phi) * (A * A / 2 + (5 - T + 9 * C + 4 * C * C) * Math.pow(A, 4) / 24 + (61 - 58 * T + T * T + 600 * C - 330 * ep2) * Math.pow(A, 6) / 720));
+    
+    if (lat < 0) northing += 10000000;
+    
+    const hemisphere = lat < 0 ? 'S' : 'N';
+    return { z: `${zone}${hemisphere}`, x: easting.toFixed(2), y: northing.toFixed(2) };
+}
+
+function UTMToLatLon(zone, isNorth, easting, northing) {
+    const a = 6378137, f = 1 / 298.257223563, k0 = 0.9996;
+    const e2 = 2 * f - f * f, ep2 = e2 / (1 - e2);
+    
+    let x = easting - 500000.0;
+    let y = isNorth ? northing : northing - 10000000.0;
+    
+    const longOrigin = (zone - 1) * 6 - 180 + 3;
+    const M = y / k0;
+    const mu = M / (a * (1 - e2 / 4 - 3 * e2 * e2 / 64 - 5 * Math.pow(e2, 3) / 256));
+    
+    const e1 = (1 - Math.sqrt(1 - e2)) / (1 + Math.sqrt(1 - e2));
+    const phi1Rad = mu + (3 * e1 / 2 - 27 * Math.pow(e1, 3) / 32) * Math.sin(2 * mu) + (21 * e1 * e1 / 16 - 55 * Math.pow(e1, 4) / 32) * Math.sin(4 * mu) + (151 * Math.pow(e1, 3) / 96) * Math.sin(6 * mu);
+    
+    const N1 = a / Math.sqrt(1 - e2 * Math.sin(phi1Rad) * Math.sin(phi1Rad));
+    const T1 = Math.tan(phi1Rad) * Math.tan(phi1Rad);
+    const C1 = ep2 * Math.cos(phi1Rad) * Math.cos(phi1Rad);
+    const R1 = a * (1 - e2) / Math.pow(1 - e2 * Math.sin(phi1Rad) * Math.sin(phi1Rad), 1.5);
+    const D = x / (N1 * k0);
+    
+    let lat = phi1Rad - (N1 * Math.tan(phi1Rad) / R1) * (D * D / 2 - (5 + 3 * T1 + 10 * C1 - 4 * C1 * C1 - 9 * ep2) * Math.pow(D, 4) / 24 + (61 + 90 * T1 + 298 * C1 + 45 * T1 * T1 - 252 * ep2 - 3 * C1 * C1) * Math.pow(D, 6) / 720);
+    lat = lat * 180 / Math.PI;
+    
+    let lon = (D - (1 + 2 * T1 + C1) * Math.pow(D, 3) / 6 + (5 - 2 * C1 + 28 * T1 - 3 * C1 * C1 + 8 * ep2 + 24 * T1 * T1) * Math.pow(D, 5) / 120) / Math.cos(phi1Rad);
+    lon = longOrigin + lon * 180 / Math.PI;
+    
+    return { lat: lat, lon: lon };
+}
+
+// --- PARSER LOGIC ---
+
+function parseInput(rawVal) {
+    let val = rawVal.trim();
+
+    if (val.includes('http') || val.includes('www.') || val.includes('google')) {
+        const urlDecode = decodeURIComponent(val);
+        const urlCoordRegex = /(-?\d{1,2}\.\d{3,})[^\d.-]+(-?\d{1,3}\.\d{3,})/;
+        const match = urlDecode.match(urlCoordRegex);
+        if (match) {
+            return { lat: parseFloat(match[1]), lon: parseFloat(match[2]) };
+        }
+    }
+
+    val = val.toUpperCase().replace(/,/g, ' ');
+
+    const utmRegex = /^(\d{1,2})\s*([a-zA-Z])\s+([\d.]+)\s+([\d.]+)$/;
+    const utmMatch = val.match(utmRegex);
+    if (utmMatch) {
+        let zone = parseInt(utmMatch[1]);
+        let letter = utmMatch[2].toUpperCase();
+        let e = parseFloat(utmMatch[3]);
+        let n = parseFloat(utmMatch[4]);
+        
+        let isNorth = true;
+        if (letter === 'S') isNorth = false;
+        else if ("CDEFGHJKLM".includes(letter)) isNorth = false; 
+
+        return UTMToLatLon(zone, isNorth, e, n);
+    }
+
+    if (/[°'"NESW]/.test(val)) {
+        const dmsRegex = /([\d.]+)[^\d.]+([\d.]+)[^\d.]+([\d.]+)[^\d.NESW]*([NESW])/g;
+        let matches = [...val.matchAll(dmsRegex)];
+        if (matches.length === 2) {
+            let latlon = { lat: 0, lon: 0 };
+            matches.forEach(m => {
+                let deg = parseFloat(m[1]);
+                let min = parseFloat(m[2]);
+                let sec = parseFloat(m[3]);
+                let dir = m[4];
+                let dd = deg + min / 60 + sec / 3600;
+                if (dir === 'S' || dir === 'W') dd = -dd;
+                if (dir === 'N' || dir === 'S') latlon.lat = dd;
+                else latlon.lon = dd;
+            });
+            return latlon;
+        }
+    }
+
+    const parts = val.replace(/[^\d.-]/g, ' ').trim().split(/\s+/);
+    if (parts.length >= 2) {
+        return { lat: parseFloat(parts[0]), lon: parseFloat(parts[1]) };
+    }
+
+    throw new Error("Formato não reconhecido.");
+}
+
+// --- UI LOGIC ---
+
+const btnConvert = document.getElementById('btn-convert');
+const errorMsg = document.getElementById('error-msg');
+const resContainer = document.getElementById('res-container');
+const inputField = document.getElementById('coords-input');
+
+function executeConversion() {
+    errorMsg.style.display = 'none';
+    
+    const inputVal = inputField.value;
+    if (!inputVal.trim()) {
+        showError("Por favor, cole as coordenadas ou link no campo acima.");
+        return;
+    }
+
+    try {
+        const ddCoords = parseInput(inputVal);
+        
+        if (isNaN(ddCoords.lat) || isNaN(ddCoords.lon) || ddCoords.lat < -90 || ddCoords.lat > 90 || ddCoords.lon < -180 || ddCoords.lon > 180) {
+            throw new Error("Valores calculados fora dos limites globais válidos.");
+        }
+
+        const dmsCoords = DDtoDMS(ddCoords.lat, ddCoords.lon);
+        const utmCoords = LatLonToUTM(ddCoords.lat, ddCoords.lon);
+        
+        // URL universal e limpa do Google Maps
+        const mapsUrl = `https://www.google.com/maps?q=${ddCoords.lat.toFixed(6)},${ddCoords.lon.toFixed(6)}`;
+
+        // Preenche os resultados
+        document.getElementById('dd-result').innerText = `${ddCoords.lat.toFixed(6)}, ${ddCoords.lon.toFixed(6)}`;
+        document.getElementById('dms-result').innerText = `${dmsCoords.lat}, ${dmsCoords.lon}`;
+        document.getElementById('utm-result').innerText = `${utmCoords.z}, ${utmCoords.x}, ${utmCoords.y}`;
+        
+        // Insere a URL como um link clicável
+        document.getElementById('gmaps-result').innerHTML = `<a href="${mapsUrl}" target="_blank">${mapsUrl}</a>`;
+
+        // Mostra os resultados
+        resContainer.style.display = 'block';
+
+        // THE MAGIC TRICK: Limpa o input e foca nele imediatamente para a próxima colagem
+        inputField.value = '';
+        inputField.focus();
+
+    } catch (e) {
+        showError(e.message || "Formato ou Link inválido. Tente copiar o formato original.");
+    }
+}
+
+// Lida com o pressionamento do Enter
+inputField.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        // Só converte se houver texto, não faz nada se estiver vazio
+        if (inputField.value.trim() !== '') {
+            executeConversion();
+        }
+    }
+});
+
+// Lida com o clique no botão
+btnConvert.addEventListener('click', () => {
+    if (inputField.value.trim() === '') {
+        // Se estiver vazio e clicar, age como botão "Limpar"
+        resContainer.style.display = 'none';
+        errorMsg.style.display = 'none';
+        inputField.focus();
+    } else {
+        // Se tiver texto, executa a conversão
+        executeConversion();
+    }
+});
+
+function showError(message) {
+    errorMsg.innerText = message;
+    errorMsg.style.display = 'block';
+}
+
+function copyResult(elementId) {
+    const textToCopy = document.getElementById(elementId).innerText;
+    navigator.clipboard.writeText(textToCopy).then(() => {
+        const msg = document.getElementById('copy-msg');
+        msg.style.display = 'block';
+        setTimeout(() => { msg.style.display = 'none'; }, 2000);
+    });
+}
+</script>
+
+</body>
+</html>
